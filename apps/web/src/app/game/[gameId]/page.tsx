@@ -6,6 +6,7 @@ import { Chess, Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import { io, Socket } from "socket.io-client";
 import { SessionProvider, useSession } from "next-auth/react";
+import Link from 'next/link';
 
 
 let socket: Socket;
@@ -26,7 +27,7 @@ function PlayerInfo({ name, rating, capturedPieces, image }: { name: string; rat
   return (
     <div className="flex w-full items-center justify-between rounded-lg bg-gray-700 p-2">
       <div className="flex items-center gap-3">
-        {/* NEW: Use a real image if it exists */}
+    
         <div 
           className="h-10 w-10 rounded-full bg-gray-500 bg-cover bg-center"
           style={{ backgroundImage: image ? `url(${image})` : 'none' }}
@@ -125,9 +126,29 @@ function GamePage({ gameId }: { gameId: string }) {
   const [capturedPieces, setCapturedPieces] = useState<{ w: Piece[], b: Piece[] }>({ w: [], b: [] });
   const [customPieces, setCustomPieces] = useState({});
   const [isGameOver, setIsGameOver] = useState(false);
+ const [isDrawOffered, setIsDrawOffered] = useState(false);
+ const [gameOverMessage, setGameOverMessage] = useState('');
+ const [whitePlayer, setWhitePlayer] = useState<Player>(null);
+ const [blackPlayer, setBlackPlayer] = useState<Player>(null);
 
-const [whitePlayer, setWhitePlayer] = useState<Player>(null);
-const [blackPlayer, setBlackPlayer] = useState<Player>(null);
+
+function handleResign() {
+    if (playerColor && playerColor !== 'spectator') {
+        socket.emit('resign', { gameId, color: playerColor });
+    }
+}
+
+function handleDraw() {
+    if (isDrawOffered) {
+        // Accept the draw
+        socket.emit('accept_draw', { gameId });
+    } else {
+        // Offer a draw
+        socket.emit('offer_draw', { gameId });
+        // Optionally, give some feedback to the user who offered
+        alert("Draw offer sent."); 
+    }
+}
 
 
   useEffect(() => {
@@ -161,6 +182,22 @@ const [blackPlayer, setBlackPlayer] = useState<Player>(null);
           setMoveHistory(newGame.history());
           setCapturedPieces(calculateCapturedPieces(fen));
       });
+
+      
+    socket.on('draw_offered', () => {
+    setIsDrawOffered(true);
+    });
+
+    socket.on('game_over', (data: { reason: string, winner: string }) => {
+    setIsGameOver(true); // We already have this state!
+    let message = '';
+    if (data.reason === 'draw') {
+        message = 'Game over: Draw agreed.';
+    } else {
+        message = `Game over: ${data.winner.charAt(0).toUpperCase() + data.winner.slice(1)} wins by resignation.`;
+    }
+    setGameOverMessage(message);
+});
 
       
       socket.on("game_status", (status) => {
@@ -215,17 +252,22 @@ const [blackPlayer, setBlackPlayer] = useState<Player>(null);
     }
   }
 
+  
+
   return (
-    <div className="flex min-h-screen bg-gray-900 text-white">
+    <div className="relative flex min-h-screen bg-gray-900 text-white">
       <div className="container mx-auto flex flex-col items-center justify-center p-4 lg:flex-row lg:items-start lg:gap-8">
+        
         <div className="flex w-full max-w-2xl flex-col items-center lg:w-2/3">
-        <PlayerInfo 
-         name={playerColor === 'white' ? blackPlayer?.name || 'Waiting...' : whitePlayer?.name || 'Waiting...'} 
-         rating="1200" 
-         capturedPieces={playerColor === 'white' ? capturedPieces.w : capturedPieces.b} 
-          image={playerColor === 'white' ? blackPlayer?.image : whitePlayer?.image}
-        />
-         
+          {/* Opponent's Info Card */}
+          <PlayerInfo 
+            name={playerColor === 'white' ? blackPlayer?.name || 'Waiting...' : whitePlayer?.name || 'Waiting...'} 
+            rating="1200" 
+            capturedPieces={playerColor === 'white' ? capturedPieces.w : capturedPieces.b} 
+            image={playerColor === 'white' ? blackPlayer?.image : whitePlayer?.image}
+          />
+
+          {/* Chessboard */}
           <div className="my-4 w-full shadow-2xl">
             <Chessboard
               id="PlayVsPlay"
@@ -238,14 +280,17 @@ const [blackPlayer, setBlackPlayer] = useState<Player>(null);
               customPieces={customPieces}
             />
           </div>
+
+          {/* My Info Card */}
           <PlayerInfo 
             name={session?.user?.name || 'You'}
             rating="1200" 
             capturedPieces={playerColor === 'white' ? capturedPieces.b : capturedPieces.w} 
-             image={session?.user?.image}
+            image={session?.user?.image}
           />
-       
         </div>
+
+        {/* Right Sidebar */}
         <div className="w-full lg:w-1/3 lg:pt-20">
             <div className="rounded-lg bg-gray-800 p-4">
                 <h2 className="text-2xl font-bold mb-4 border-b border-gray-700 pb-2">Game Info</h2>
@@ -258,16 +303,48 @@ const [blackPlayer, setBlackPlayer] = useState<Player>(null);
                     <span className="font-bold capitalize">{playerColor || "Spectator"}</span>
                 </div>
                 <MoveHistory history={moveHistory} />
+
+                {/*The updated buttons --- */}
                 <div className="mt-4 flex gap-4">
-                    <button className="flex-1 rounded-md bg-gray-700 p-3 font-semibold hover:bg-gray-600">Draw</button>
-                    <button className="flex-1 rounded-md bg-red-800 p-3 font-semibold hover:bg-red-700">Resign</button>
+                    <button 
+                        onClick={handleDraw}
+                        disabled={isGameOver}
+                        className={`flex-1 rounded-md p-3 font-semibold transition ${
+                            isDrawOffered 
+                            ? 'bg-yellow-500 hover:bg-yellow-400 text-black' 
+                            : 'bg-gray-700 hover:bg-gray-600'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                        {isDrawOffered ? 'Accept Draw' : 'Offer Draw'}
+                    </button>
+                    <button 
+                        onClick={handleResign}
+                        disabled={isGameOver}
+                        className="flex-1 rounded-md bg-red-800 p-3 font-semibold transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Resign
+                    </button>
                 </div>
             </div>
         </div>
       </div>
+
+     
+      {isGameOver && gameOverMessage && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75" aria-modal="true" role="dialog">
+            <div className="rounded-lg bg-gray-800 p-8 text-center shadow-2xl">
+                <h2 className="text-4xl font-bold text-white mb-4">Game Over</h2>
+                <p className="text-xl text-gray-300 mb-6">{gameOverMessage}</p>
+                <Link href="/" className="rounded-md bg-blue-600 px-6 py-3 font-bold text-white transition hover:bg-blue-500">
+                    Back to Lobby
+                </Link>
+            </div>
+        </div>
+      )}
     </div>
   );
 }
+      
 
 
 export default function GamePageWrapper({ params }: { params: Promise<{ gameId: string }> }) {

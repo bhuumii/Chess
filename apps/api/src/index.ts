@@ -103,6 +103,28 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('move', async (data: { gameId: string, fen: string }) => {
     await db.update(gamesTable).set({ fen: data.fen }).where(eq(gamesTable.id, data.gameId));
+
+    socket.on('resign', async (data: { gameId: string, color: 'white' | 'black' }) => {
+    const winner = data.color === 'white' ? 'black' : 'white';
+    await db.update(gamesTable)
+        .set({ status: 'completed', winner: winner })
+        .where(eq(gamesTable.id, data.gameId));
+
+            io.to(data.gameId).emit('game_over', { reason: 'resignation', winner: winner });
+});
+
+socket.on('offer_draw', (data: { gameId: string }) => {
+    // Forward the draw offer to the other player
+    socket.to(data.gameId).emit('draw_offered');
+});
+
+socket.on('accept_draw', async (data: { gameId: string }) => {
+    await db.update(gamesTable)
+        .set({ status: 'completed', winner: 'draw' })
+        .where(eq(gamesTable.id, data.gameId));
+
+    io.to(data.gameId).emit('game_over', { reason: 'draw', winner: 'draw' });
+});
     
     const chess = new Chess(data.fen);
     io.to(data.gameId).emit('game_update', data.fen);
