@@ -16,20 +16,20 @@ function Hub() {
       <div className="space-y-4">
         <Link
           href="/lobby/public"
-          className="block rounded-lg bg-green-600 p-6 text-xl font-bold text-white shadow-lg transition hover:bg-green-500"
+          className="block rounded-lg bg-green-600 p-6 text-xl font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-100"
         >
           Play Online (Public)
         </Link>
         <Link
           href="/lobby/private"
-          className="block rounded-lg bg-blue-600 p-6 text-xl font-bold text-white shadow-lg transition hover:bg-blue-500"
+          className="block rounded-lg bg-blue-600 p-6 text-xl font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-100"
         >
           Play with a Friend (Private)
         </Link>
       </div>
       <button
         onClick={() => signOut()}
-        className="mt-8 text-gray-400 hover:text-white"
+        className="mt-8 text-gray-400 transition hover:text-white"
       >
         Sign Out
       </button>

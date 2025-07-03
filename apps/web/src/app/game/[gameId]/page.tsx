@@ -217,12 +217,10 @@ function GamePage({ gameId }: { gameId: string }) {
 
   function handleDraw() {
     if (isDrawOffered) {
-      // Accept the draw
       socket.emit("accept_draw", { gameId });
     } else {
-      // Offer a draw
       socket.emit("offer_draw", { gameId });
-      // Optionally, give some feedback to the user who offered
+
       alert("Draw offer sent.");
     }
   }
@@ -397,43 +395,49 @@ function GamePage({ gameId }: { gameId: string }) {
               </span>
             </div>
 
-<div className="flex items-center justify-between text-lg mt-4 rounded-lg bg-gray-900 p-3">
-    <span className="font-semibold text-gray-400">Game Code:</span>
-    <div className="flex items-center gap-2">
-        <span className="font-mono text-xl font-bold text-green-400">{gameId}</span>
-        <button 
-            onClick={() => navigator.clipboard.writeText(gameId)}
-            title="Copy Game Code"
-            className="p-1 text-gray-400 hover:text-white"
-        >
-            {/* Simple SVG for a copy icon */}
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
-              <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H4z" />
-            </svg>
-        </button>
-    </div>
-</div>
+            <div className="flex items-center justify-between text-lg mt-4 rounded-lg bg-gray-900 p-3">
+              <span className="font-semibold text-gray-400">Game Code:</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xl font-bold text-green-400">
+                  {gameId}
+                </span>
+                <button
+                  onClick={() => navigator.clipboard.writeText(gameId)}
+                  title="Copy Game Code"
+                  className="p-1 text-gray-400 hover:text-white"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
+                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H4z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
 
             <MoveHistory history={moveHistory} />
 
-            {/*The updated buttons --- */}
+            {/*The updated buttons */}
             <div className="mt-4 flex gap-4">
               <button
                 onClick={handleDraw}
                 disabled={isGameOver}
-                className={`flex-1 rounded-md p-3 font-semibold transition ${
+                className={`flex-1 rounded-md p-3 font-semibold transition-all ${
                   isDrawOffered
                     ? "bg-yellow-500 hover:bg-yellow-400 text-black"
                     : "bg-gray-700 hover:bg-gray-600"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                } disabled:opacity-50 disabled:cursor-not-allowed active:brightness-90`}
               >
                 {isDrawOffered ? "Accept Draw" : "Offer Draw"}
               </button>
               <button
                 onClick={handleResign}
                 disabled={isGameOver}
-                className="flex-1 rounded-md bg-red-800 p-3 font-semibold transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 rounded-md bg-red-800 p-3 font-semibold transition-all hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed active:brightness-90" // Added -all and active
               >
                 Resign
               </button>

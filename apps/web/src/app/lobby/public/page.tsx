@@ -47,7 +47,6 @@ function PublicLobby() {
     return <div className="text-center text-white">Loading Lobby...</div>;
   }
 
-  // Replace the entire return statement in the PublicLobby component
   return (
     <div className="mx-auto max-w-4xl rounded-lg bg-gray-800 p-6 shadow-xl">
       <div className="mb-6 flex items-center justify-between border-b border-gray-700 pb-4">
@@ -93,7 +92,6 @@ function PublicLobby() {
                   !session?.user ||
                   game.whitePlayer?.id === session.user.id
                 ) {
-                  // Don't show games created by the current user
                   return null;
                 }
 
@@ -151,7 +149,9 @@ function PublicLobby() {
 export default function PublicLobbyWrapper() {
   return (
     <SessionProvider>
-      <PublicLobby />
+      <div className="flex min-h-screen items-center justify-center bg-gray-900 p-4">
+        <PublicLobby />
+      </div>
     </SessionProvider>
   );
 }
