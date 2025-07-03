@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { relations } from "drizzle-orm";
 import {
   integer,
   sqliteTable,
@@ -34,9 +34,9 @@ export const accounts = sqliteTable(
   },
   (account) => ({
     compoundKey: primaryKey({
-        columns: [account.provider, account.providerAccountId]
+      columns: [account.provider, account.providerAccountId],
     }),
-  })
+  }),
 );
 
 export const sessions = sqliteTable("session", {
@@ -56,40 +56,44 @@ export const verificationTokens = sqliteTable(
   },
   (vt) => ({
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
-  })
+  }),
 );
 
-
-export const games = sqliteTable('game', {
-  id: text('id').primaryKey(), 
-  fen: text('fen').notNull().default('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'),
-  whitePlayerId: text('whitePlayerId'),
-  blackPlayerId: text('blackPlayerId'),
-  status: text('status', { enum: ['waiting', 'in_progress', 'completed'] }).notNull().default('waiting'),
-  winner: text('winner', { enum: ['white', 'black', 'draw'] }),
-  createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull().default(new Date()),
+export const games = sqliteTable("game", {
+  id: text("id").primaryKey(),
+  gameType: text("gameType", { enum: ["public", "private"] })
+    .notNull()
+    .default("public"),
+  fen: text("fen")
+    .notNull()
+    .default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+  whitePlayerId: text("whitePlayerId"),
+  blackPlayerId: text("blackPlayerId"),
+  status: text("status", { enum: ["waiting", "in_progress", "completed"] })
+    .notNull()
+    .default("waiting"),
+  winner: text("winner", { enum: ["white", "black", "draw"] }),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" })
+    .notNull()
+    .default(new Date()),
 });
 
-
-
 export const usersRelations = relations(users, ({ many }) => ({
+  gamesAsWhite: many(games, { relationName: "whitePlayer" }),
 
-  gamesAsWhite: many(games, { relationName: 'whitePlayer' }),
-
-  gamesAsBlack: many(games, { relationName: 'blackPlayer' }),
+  gamesAsBlack: many(games, { relationName: "blackPlayer" }),
 }));
 
 export const gamesRelations = relations(games, ({ one }) => ({
-
   whitePlayer: one(users, {
     fields: [games.whitePlayerId],
     references: [users.id],
-    relationName: 'whitePlayer',
+    relationName: "whitePlayer",
   }),
 
   blackPlayer: one(users, {
     fields: [games.blackPlayerId],
     references: [users.id],
-    relationName: 'blackPlayer',
+    relationName: "blackPlayer",
   }),
 }));

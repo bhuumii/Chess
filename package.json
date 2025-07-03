@@ -5,17 +5,17 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "clean": "rm -rf .turbo && rm -rf node_modules && find . -name '.next' -type d -prune -exec rm -rf '{}' + && find . -name 'dist' -type d -prune -exec rm -rf '{}' +", 
+    "f": "biome format --write .",
+    "clean": "rm -rf .turbo && rm -rf node_modules && find . -name '.next' -type d -prune -exec rm -rf '{}' + && find . -name 'dist' -type d -prune -exec rm -rf '{}' +",
     "db:push": "drizzle-kit push --config=drizzle.config.mjs",
     "db:generate": "drizzle-kit generate --config=drizzle.config.mjs",
-    "db:migrate": "tsx migrate.ts" 
+    "db:migrate": "tsx migrate.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.0.6",
     "@types/node": "^24.0.4",
     "dotenv-cli": "^8.0.0",
     "drizzle-kit": "^0.31.2",
-    "prettier": "^3.6.0",
     "tsx": "^4.20.3",
     "turbo": "^2.5.4",
     "typescript": "5.8.2"

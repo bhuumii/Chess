@@ -16,12 +16,13 @@ CREATE TABLE `account` (
 --> statement-breakpoint
 CREATE TABLE `game` (
 	`id` text PRIMARY KEY NOT NULL,
+	`gameType` text DEFAULT 'public' NOT NULL,
 	`fen` text DEFAULT 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' NOT NULL,
 	`whitePlayerId` text,
 	`blackPlayerId` text,
 	`status` text DEFAULT 'waiting' NOT NULL,
 	`winner` text,
-	`createdAt` integer DEFAULT '"2025-06-26T18:45:31.779Z"' NOT NULL
+	`createdAt` integer DEFAULT '"2025-07-02T19:22:43.844Z"' NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `session` (
