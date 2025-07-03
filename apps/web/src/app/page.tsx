@@ -3,17 +3,17 @@
 import Link from "next/link";
 import { useSession, signIn, signOut, SessionProvider } from "next-auth/react";
 
-// This is the main component that decides what to show
+
 function MainPage() {
-  // The useSession hook gives us the user's session data and a status
+
   const { data: session, status } = useSession();
 
-  // 1. While the session is being checked, show a loading message
+
   if (status === "loading") {
     return <div className="text-center text-white animate-pulse">Loading...</div>;
   }
 
-  // 2. If the status is "unauthenticated", show the Sign-In screen
+
   if (status === "unauthenticated") {
     return (
         <div className="flex flex-col items-center justify-center text-center">
@@ -29,7 +29,7 @@ function MainPage() {
     );
   }
 
-  // 3. If we have a session (status is "authenticated"), show the main Hub
+
   return (
     <div className="w-full max-w-lg text-center">
       <div className="mb-8">
@@ -52,7 +52,7 @@ function MainPage() {
 }
 
 
-// This wrapper provides the Session context and the background color
+
 export default function HubPageWrapper() {
   return (
     <SessionProvider>
