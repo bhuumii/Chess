@@ -35,7 +35,7 @@ function PrivateLobby() {
         <input
           type="text"
           value={joinCode}
-          onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+          onChange={(e) => setJoinCode(e.target.value)}
           placeholder="ENTER CODE"
           className="w-full rounded-md border-gray-600 bg-gray-700 p-3 text-center text-2xl tracking-widest text-white placeholder-gray-500"
           maxLength={7}
