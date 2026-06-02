@@ -4,12 +4,10 @@ import { useState, useEffect, use } from "react";
 import React from "react";
 import { Chess, Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
-import { io, Socket } from "socket.io-client";
+import Pusher from "pusher-js";
 import { SessionProvider, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-
-let socket: Socket;
 
 type Piece =
   | "wP"
@@ -28,10 +26,30 @@ type Piece =
 type Player = {
   id: string;
   name: string | null;
-  email: string;
-  emailVerified: number | null;
+  email: string | null;
+  emailVerified?: number | null;
   image: string | null;
 } | null;
+
+type FullGameState = {
+  game: {
+    fen: string;
+    whitePlayerId: string | null;
+    blackPlayerId: string | null;
+  };
+  whitePlayer: Player;
+  blackPlayer: Player;
+};
+
+type JoinResponse = {
+  fullState: FullGameState;
+  color: "white" | "black" | "spectator";
+};
+
+type GameOverPayload = {
+  reason: string;
+  winner: string;
+};
 
 function PlayerInfo({
   name,
@@ -209,78 +227,136 @@ function GamePage({ gameId }: { gameId: string }) {
   const searchParams = useSearchParams();
   const gameType = searchParams.get("type") as "private" | null;
 
-  function handleResign() {
+  async function postGameAction<T>(action: string, body: unknown) {
+    const res = await fetch(`/api/games/${gameId}/${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || data.error || "Request failed");
+    }
+    return data as T;
+  }
+
+  function applyFullGameState(data: FullGameState) {
+    const newGame = new Chess(data.game.fen);
+    setGame(newGame);
+    setMoveHistory(newGame.history());
+    setCapturedPieces(calculateCapturedPieces(data.game.fen));
+    setWhitePlayer(data.whitePlayer);
+    setBlackPlayer(data.blackPlayer);
+  }
+
+  async function handleResign() {
     if (playerColor && playerColor !== "spectator") {
-      socket.emit("resign", { gameId, color: playerColor });
+      try {
+        await postGameAction("resign", { color: playerColor });
+      } catch (error) {
+        console.error("Failed to resign", error);
+      }
     }
   }
 
-  function handleDraw() {
-    if (isDrawOffered) {
-      socket.emit("accept_draw", { gameId });
-    } else {
-      socket.emit("offer_draw", { gameId });
-
-      alert("Draw offer sent.");
+  async function handleDraw() {
+    try {
+      if (isDrawOffered) {
+        await postGameAction("draw", { action: "accept" });
+      } else {
+        await postGameAction("draw", { action: "offer" });
+        alert("Draw offer sent.");
+      }
+    } catch (error) {
+      console.error("Failed to handle draw", error);
     }
   }
 
   useEffect(() => {
     if (session?.user?.id) {
-      setCustomPieces(createCustomPieces());
-      socket = io("http://localhost:8000");
+      const userId = session.user.id;
+      let pusherClient: Pusher | null = null;
+      let channel: ReturnType<Pusher["subscribe"]> | null = null;
+      let isCancelled = false;
 
-      socket.emit("join_game", {
-        gameId,
-        userId: session.user.id,
-        gameType: gameType || "public",
-      });
+      const connectToGame = async () => {
+        setCustomPieces(createCustomPieces());
 
-      socket.on("game_state_update", (data) => {
-        console.log("Received game_state_update:", data);
-        const newGame = new Chess(data.game.fen);
-        setGame(newGame);
-        setMoveHistory(newGame.history());
-        setCapturedPieces(calculateCapturedPieces(data.game.fen));
-        setWhitePlayer(data.whitePlayer);
-        setBlackPlayer(data.blackPlayer);
-      });
-
-      socket.on("assign_color", (color) => {
-        setPlayerColor(color);
-      });
-
-      socket.on("game_update", (fen: string) => {
-        const newGame = new Chess(fen);
-        setGame(newGame);
-        setMoveHistory(newGame.history());
-        setCapturedPieces(calculateCapturedPieces(fen));
-      });
-
-      socket.on("draw_offered", () => {
-        setIsDrawOffered(true);
-      });
-
-      socket.on("game_over", (data: { reason: string; winner: string }) => {
-        setIsGameOver(true); // We already have this state!
-        let message = "";
-        if (data.reason === "draw") {
-          message = "Game over: Draw agreed.";
-        } else {
-          message = `Game over: ${data.winner.charAt(0).toUpperCase() + data.winner.slice(1)} wins by resignation.`;
+        const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY;
+        const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+        if (!pusherKey || !pusherCluster) {
+          setPlayerColor("spectator");
+          setGameStatus("Pusher is not configured.");
+          return;
         }
-        setGameOverMessage(message);
-      });
 
-      socket.on("game_status", (status) => {
-        setGameStatus(status);
-      });
+        try {
+          const joinData = await postGameAction<JoinResponse>("join", {
+            gameType: gameType || "public",
+          });
+          if (isCancelled) return;
+
+          applyFullGameState(joinData.fullState);
+          setPlayerColor(joinData.color);
+
+          pusherClient = new Pusher(pusherKey, {
+            cluster: pusherCluster,
+            channelAuthorization: {
+              endpoint: "/api/pusher/auth",
+              transport: "ajax",
+            },
+          });
+
+          channel = pusherClient.subscribe(`presence-game-${gameId}`);
+
+          channel.bind("game-state-update", (data: FullGameState) => {
+            applyFullGameState(data);
+          });
+
+          channel.bind("game-update", (data: { fen: string }) => {
+            const newGame = new Chess(data.fen);
+            setGame(newGame);
+            setMoveHistory(newGame.history());
+            setCapturedPieces(calculateCapturedPieces(data.fen));
+          });
+
+          channel.bind("draw-offered", (data: { fromUserId: string }) => {
+            if (data.fromUserId !== userId) setIsDrawOffered(true);
+          });
+
+          channel.bind("game-over", (data: GameOverPayload) => {
+            setIsGameOver(true);
+            let message = "";
+            if (data.reason === "draw") {
+              message = "Game over: Draw agreed.";
+            } else {
+              message = `Game over: ${data.winner.charAt(0).toUpperCase() + data.winner.slice(1)} wins by resignation.`;
+            }
+            setGameOverMessage(message);
+          });
+
+          channel.bind("game-status", (data: { status: string }) => {
+            setGameStatus(data.status);
+          });
+        } catch (error) {
+          if (isCancelled) return;
+          setPlayerColor("spectator");
+          setGameStatus(
+            error instanceof Error ? error.message : "Failed to connect to game.",
+          );
+        }
+      };
+
+      connectToGame();
 
       return () => {
-        if (socket) socket.disconnect();
+        isCancelled = true;
+        channel?.unbind_all();
+        pusherClient?.unsubscribe(`presence-game-${gameId}`);
+        pusherClient?.disconnect();
       };
     }
-  }, [gameId, session]);
+  }, [gameId, session, gameType]);
 
   useEffect(() => {
     if (playerColor) {
@@ -325,10 +401,12 @@ function GamePage({ gameId }: { gameId: string }) {
         setMoveHistory(newHistory);
         setCapturedPieces(calculateCapturedPieces(gameCopy.fen()));
         updateGameStatus();
-        socket.emit("move", { gameId, fen: gameCopy.fen() });
+        void postGameAction("move", { fen: gameCopy.fen() }).catch((error) => {
+          console.error("Failed to send move", error);
+        });
       }
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

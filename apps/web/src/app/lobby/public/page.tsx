@@ -24,7 +24,7 @@ function PublicLobby() {
 
   async function fetchOpenGames() {
     try {
-      const res = await fetch("http://localhost:8000/open");
+      const res = await fetch("/api/open");
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       if (Array.isArray(data)) setOpenGames(data);

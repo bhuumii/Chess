@@ -12,7 +12,7 @@ function PrivateLobby() {
 
   const handleJoinGame = (e: React.FormEvent) => {
     e.preventDefault();
-    if (joinCode.trim()) router.push(`/game/${joinCode.trim()}`);
+    if (joinCode.trim()) router.push(`/game/${joinCode.trim()}?type=private`);
   };
 
   return (
