@@ -33,12 +33,28 @@ export async function POST(
     game.whitePlayerId === session.user.id || game.blackPlayerId === session.user.id;
   if (!isPlayer) return Response.json({ error: "Forbidden" }, { status: 403 });
 
+  const chess = new Chess(body.fen);
+
+  if (chess.isCheckmate()) {
+    const winner = chess.turn() === "w" ? "black" : "white";
+    await db
+      .update(gamesTable)
+      .set({ fen: body.fen, status: "completed", winner })
+      .where(eq(gamesTable.id, gameId));
+
+    await triggerGameEvent(gameId, PUSHER_EVENTS.GAME_UPDATE, { fen: body.fen });
+    await triggerGameEvent(gameId, PUSHER_EVENTS.GAME_OVER, {
+      reason: "checkmate",
+      winner,
+    });
+    return Response.json({ ok: true });
+  }
+
   await db
     .update(gamesTable)
     .set({ fen: body.fen })
     .where(eq(gamesTable.id, gameId));
 
-  const chess = new Chess(body.fen);
   const status = (chess.turn() === "w" ? "White" : "Black") + "'s turn";
 
   await triggerGameEvent(gameId, PUSHER_EVENTS.GAME_UPDATE, { fen: body.fen });

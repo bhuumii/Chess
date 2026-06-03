@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.10.0",
+    "@dicebear/collection": "^9.4.2",
+    "@dicebear/core": "^9.4.2",
     "chess.js": "^1.4.0",
     "db": "workspace:*",
     "drizzle-orm": "^0.44.2",

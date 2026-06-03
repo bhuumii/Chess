@@ -2,8 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useSession, signIn, signOut, SessionProvider } from "next-auth/react";
+import { AVATAR_PRESETS, buildAvatarDataUri } from "@/lib/avatars";
+
+type PlayerStats = {
+  played: number;
+  won: number;
+  lost: number;
+  draw: number;
+};
 
 function BoardPreview() {
   return (
@@ -18,8 +26,219 @@ function BoardPreview() {
   );
 }
 
+function ProfileMenu({
+  name,
+  image,
+  onSaved,
+}: {
+  name: string;
+  image: string | null | undefined;
+  onSaved: (profile: { name: string; image: string }) => Promise<void>;
+}) {
+  const fallbackAvatar = buildAvatarDataUri(AVATAR_PRESETS[0]);
+  const currentAvatar = image ?? fallbackAvatar;
+  const [isOpen, setIsOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<"stats" | "profile">("stats");
+  const [username, setUsername] = useState(name);
+  const [selectedAvatar, setSelectedAvatar] = useState(currentAvatar);
+  const [profileMessage, setProfileMessage] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [stats, setStats] = useState<PlayerStats | null>(null);
+  const [statsError, setStatsError] = useState("");
+
+  useEffect(() => {
+    setUsername(name);
+    setSelectedAvatar(image ?? fallbackAvatar);
+  }, [name, image, fallbackAvatar]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadStats() {
+      try {
+        const response = await fetch("/api/profile/stats");
+        const data = (await response.json().catch(() => null)) as PlayerStats | { error?: string } | null;
+
+        const isStats =
+          data &&
+          "played" in data &&
+          "won" in data &&
+          "lost" in data &&
+          "draw" in data;
+
+        if (!response.ok || !isStats) {
+          if (!isCancelled) setStatsError("Could not load stats.");
+          return;
+        }
+
+        if (!isCancelled) setStats(data);
+      } catch {
+        if (!isCancelled) setStatsError("Could not load stats.");
+      }
+    }
+
+    loadStats();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setProfileMessage("");
+    setIsSaving(true);
+
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: username, image: selectedAvatar }),
+      });
+      const data = (await response.json().catch(() => null)) as {
+        name?: string;
+        image?: string;
+        error?: string;
+      } | null;
+
+      if (!response.ok || !data?.name || !data?.image) {
+        setProfileMessage(data?.error ?? "Could not save profile.");
+        return;
+      }
+
+      await onSaved({ name: data.name, image: data.image });
+      setProfileMessage("Profile saved.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="relative z-20"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen((value) => !value)}
+        className="flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-black/30 p-1 transition hover:border-[#c89b3c]/70"
+        aria-label="Open profile menu"
+      >
+        <img src={currentAvatar} alt="Your avatar" className="h-full w-full rounded-full object-cover" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-14 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-white/10 bg-[#20201d] p-4 shadow-2xl">
+          <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+            <img src={currentAvatar} alt="Your avatar" className="h-12 w-12 rounded-full border border-white/10 object-cover" />
+            <div className="min-w-0">
+              <p className="truncate font-bold text-[#f1eadc]">{name}</p>
+              <p className="text-sm text-[#b9ae9a]">Player profile</p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-black/20 p-1">
+            <button
+              type="button"
+              onClick={() => setActivePanel("stats")}
+              className={"rounded-md px-3 py-2 text-sm font-semibold transition " + (activePanel === "stats" ? "bg-[#c89b3c] text-[#141414]" : "text-[#b9ae9a] hover:text-[#f1eadc]")}
+            >
+              Stats
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePanel("profile")}
+              className={"rounded-md px-3 py-2 text-sm font-semibold transition " + (activePanel === "profile" ? "bg-[#c89b3c] text-[#141414]" : "text-[#b9ae9a] hover:text-[#f1eadc]")}
+            >
+              Edit profile
+            </button>
+          </div>
+
+          {activePanel === "stats" ? (
+            <div className="mt-4">
+              {stats ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                    <p className="text-xs uppercase tracking-[0.14em] text-[#b9ae9a]">Played</p>
+                    <p className="mt-1 text-2xl font-bold text-[#f1eadc]">{stats.played}</p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                    <p className="text-xs uppercase tracking-[0.14em] text-[#b9ae9a]">Won</p>
+                    <p className="mt-1 text-2xl font-bold text-[#4f7f55]">{stats.won}</p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                    <p className="text-xs uppercase tracking-[0.14em] text-[#b9ae9a]">Lost</p>
+                    <p className="mt-1 text-2xl font-bold text-[#94443d]">{stats.lost}</p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                    <p className="text-xs uppercase tracking-[0.14em] text-[#b9ae9a]">Draw</p>
+                    <p className="mt-1 text-2xl font-bold text-[#c89b3c]">{stats.draw}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-[#b9ae9a]">
+                  {statsError || "Loading stats..."}
+                </p>
+              )}
+            </div>
+          ) : (
+            <form onSubmit={handleSaveProfile} className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="profile-name" className="mb-1.5 block text-sm font-semibold text-[#f1eadc]">Username</label>
+                <input
+                  id="profile-name"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  minLength={2}
+                  maxLength={30}
+                  className="ui-input w-full rounded-lg px-4 py-3"
+                />
+              </div>
+
+              <div>
+                <p className="mb-2 text-sm font-semibold text-[#f1eadc]">Avatar</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {AVATAR_PRESETS.map((seed) => {
+                    const avatar = buildAvatarDataUri(seed);
+                    const isSelected = avatar === selectedAvatar;
+                    return (
+                      <button
+                        key={seed}
+                        type="button"
+                        onClick={() => setSelectedAvatar(avatar)}
+                        className={"rounded-lg border p-1 transition " + (isSelected ? "border-[#c89b3c] bg-[#c89b3c]/10" : "border-white/10 bg-black/20 hover:border-white/25")}
+                        aria-label={"Choose avatar " + seed}
+                      >
+                        <img src={avatar} alt="" className="h-12 w-12 rounded-md" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {profileMessage && <p className="text-sm font-semibold text-[#b9ae9a]">{profileMessage}</p>}
+
+              <button type="submit" disabled={isSaving} className="ui-button w-full bg-[#c89b3c] px-5 py-3 text-[#141414] disabled:cursor-not-allowed disabled:opacity-60">
+                {isSaving ? "Saving..." : "Save Profile"}
+              </button>
+            </form>
+          )}
+
+          <button
+            type="button"
+            onClick={() => signOut()}
+            className="mt-4 w-full rounded-lg border border-white/10 px-4 py-3 text-sm font-semibold text-[#b9ae9a] transition hover:border-[#94443d]/60 hover:text-[#f1eadc]"
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MainPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -126,22 +345,23 @@ function MainPage() {
   const displayName = session?.user?.name ?? session?.user?.email ?? "Player";
 
   return (
-    <main className="app-shell">
-      <div className="mx-auto w-full max-w-5xl">
-        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            {session?.user?.image ? (
-              <img src={session.user.image} alt="Your avatar" className="h-14 w-14 rounded-lg border border-white/10 object-cover" />
-            ) : (
-              <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-white/10 bg-[#4f7f55] text-xl font-bold text-white">{displayName.charAt(0).toUpperCase()}</div>
-            )}
-            <div>
-              <p className="text-sm text-[#b9ae9a]">Signed in as</p>
-              <h1 className="text-2xl font-bold text-[#f1eadc]">{displayName}</h1>
-            </div>
-          </div>
-          <button onClick={() => signOut()} className="ui-button border border-white/10 bg-transparent px-4 py-2.5 text-[#b9ae9a] hover:text-[#f1eadc]">Sign Out</button>
-        </header>
+    <main className="app-shell relative flex min-h-screen items-center">
+      <div className="absolute right-4 top-4 sm:right-6 sm:top-6 lg:right-8 lg:top-8">
+        <ProfileMenu
+          name={displayName}
+          image={session?.user?.image}
+          onSaved={async (profile) => {
+            await update({ user: profile });
+            router.refresh();
+          }}
+        />
+      </div>
+
+      <div className="mx-auto w-full max-w-4xl">
+        <div className="mb-8 text-center">
+          <p className="text-sm text-[#b9ae9a]">Welcome, {displayName}</p>
+          <h1 className="mt-2 text-3xl font-bold text-[#f1eadc]">Choose a game mode</h1>
+        </div>
 
         <section className="grid gap-5 md:grid-cols-2">
           <Link href="/lobby/public" className="ui-card rounded-xl p-6 transition hover:border-[#c89b3c]/50">

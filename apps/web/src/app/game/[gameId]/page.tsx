@@ -497,16 +497,16 @@ function GamePage({ gameId }: { gameId: string }) {
   const highlightedSquares = legalMoveSquares.reduce<Record<string, React.CSSProperties>>(
     (styles, square) => {
       styles[square] = {
-        background:
-          "radial-gradient(circle, rgba(200, 155, 60, 0.52) 18%, rgba(200, 155, 60, 0.18) 20%, transparent 24%)",
+        backgroundColor: "rgba(200, 155, 60, 0.34)",
+        boxShadow: "inset 0 0 0 3px rgba(200, 155, 60, 0.38)",
       };
       return styles;
     },
     selectedSquare
       ? {
           [selectedSquare]: {
-            boxShadow: "inset 0 0 0 4px rgba(200, 155, 60, 0.82)",
-            backgroundColor: "rgba(200, 155, 60, 0.24)",
+            boxShadow: "inset 0 0 0 4px rgba(241, 234, 220, 0.85)",
+            backgroundColor: "rgba(200, 155, 60, 0.46)",
           },
         }
       : {},

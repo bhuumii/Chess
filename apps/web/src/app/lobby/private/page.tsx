@@ -17,7 +17,7 @@ function PrivateLobby() {
 
   return (
     <main className="app-shell flex items-center">
-      <div className="mx-auto grid w-full max-w-4xl gap-5 md:grid-cols-[1fr_1fr]">
+      <div className="mx-auto w-full max-w-md">
         <section className="ui-card rounded-xl p-6">
           <Link href="/" className="text-sm font-semibold text-[#c89b3c] hover:text-[#f1eadc]">Back to home</Link>
           <h1 className="mt-3 text-3xl font-bold text-[#f1eadc]">Private Game</h1>
@@ -38,16 +38,6 @@ function PrivateLobby() {
             </div>
             <button type="submit" disabled={!joinCode.trim()} className="ui-button w-full bg-[#4f7f55] px-5 py-3 text-white disabled:cursor-not-allowed disabled:opacity-50">Join Game</button>
           </form>
-        </section>
-
-        <section className="ui-card hidden rounded-xl p-6 md:block">
-          <h2 className="text-xl font-bold text-[#f1eadc]">Private matches</h2>
-          <p className="mt-2 text-sm leading-6 text-[#b9ae9a]">Share the generated game code with one person. They can enter it here to join the same board.</p>
-          <div className="board-preview mt-6 aspect-square w-full">
-            {Array.from({ length: 64 }).map((_, index) => (
-              <span key={index} className={(index + Math.floor(index / 8)) % 2 === 0 ? "bg-[#e5d1a7]" : "bg-[#8d6748]"} />
-            ))}
-          </div>
         </section>
       </div>
     </main>
