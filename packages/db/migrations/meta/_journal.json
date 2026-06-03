@@ -8,6 +8,13 @@
       "when": 1751484163853,
       "tag": "0000_early_ikaris",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1780474341794,
+      "tag": "0001_colorful_karen_page",
+      "breakpoints": true
     }
   ]
 }
