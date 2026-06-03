@@ -1,16 +1,23 @@
+import { createClient } from "@libsql/client";
 import "dotenv/config";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 
-const absoluteDbPath = "/home/bhumi/Code/chess2/db.sqlite3";
+const databaseUrl = process.env.DATABASE_URL;
 
-const sqlite = new Database(absoluteDbPath);
-const db = drizzle(sqlite);
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required to run migrations.");
+}
+
+const client = createClient({
+  url: databaseUrl,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
+const db = drizzle(client);
 
 async function main() {
-  console.log("Running migrations on:", absoluteDbPath);
-  migrate(db, { migrationsFolder: "./packages/db/migrations" });
+  console.log("Running migrations on:", databaseUrl);
+  await migrate(db, { migrationsFolder: "./packages/db/migrations" });
   console.log("Migrations finished!");
   process.exit(0);
 }

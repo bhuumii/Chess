@@ -13,7 +13,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.6",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.0.4",
     "dotenv-cli": "^8.0.0",
     "drizzle-kit": "^0.31.2",
@@ -27,7 +26,6 @@
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.10.0",
-    "better-sqlite3": "^12.1.1",
     "drizzle-orm": "^0.44.2"
   }
 }

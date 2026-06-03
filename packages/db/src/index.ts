@@ -1,7 +1,26 @@
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { config } from "dotenv";
+import { drizzle } from "drizzle-orm/libsql/web";
 import * as schema from "./schema";
 
-const absoluteDbPath = "/home/bhumi/Code/chess2/db.sqlite3";
+for (const envPath of [
+  resolve(process.cwd(), ".env"),
+  resolve(process.cwd(), "../..", ".env"),
+]) {
+  if (existsSync(envPath)) config({ path: envPath, quiet: true });
+}
 
-export const db = drizzle(new Database(absoluteDbPath), { schema });
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required to connect to the database.");
+}
+
+export const db = drizzle({
+  connection: {
+    url: databaseUrl,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  },
+  schema,
+});

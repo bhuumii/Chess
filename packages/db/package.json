@@ -11,6 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "@auth/core": "^0.40.0",
+    "@libsql/client": "^0.17.3",
+    "dotenv": "^17.4.2",
     "drizzle-orm": "^0.44.2"
   }
 }
