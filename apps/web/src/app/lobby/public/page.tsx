@@ -6,16 +6,20 @@ import { nanoid } from "nanoid";
 import { useSession, signOut } from "next-auth/react";
 import { SessionProvider } from "next-auth/react";
 
-type Player = {
-  id: string;
-  name: string | null;
-  image: string | null;
-};
+type Player = { id: string; name: string | null; image: string | null };
+type Game = { id: string; whitePlayer: Player | null };
 
-type Game = {
-  id: string;
-  whitePlayer: Player | null;
-};
+function PlayerAvatar({ player, label }: { player: Player | null; label: string }) {
+  if (player?.image) {
+    return <img src={player.image} alt={label} className="h-10 w-10 rounded-lg border border-white/10 object-cover" />;
+  }
+
+  return (
+    <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-[#4f7f55] text-sm font-bold text-white">
+      {(player?.name ?? "A").charAt(0).toUpperCase()}
+    </div>
+  );
+}
 
 function PublicLobby() {
   const { data: session, status } = useSession();
@@ -44,114 +48,78 @@ function PublicLobby() {
   }, [status]);
 
   if (status === "loading" || isLoading) {
-    return <div className="text-center text-white">Loading Lobby...</div>;
+    return <div className="flex min-h-screen items-center justify-center text-[#f1eadc]">Loading lobby...</div>;
   }
 
+  const joinableGames = openGames.filter((game) => session?.user && game.whitePlayer?.id !== session.user.id);
+  const userName = session?.user?.name ?? session?.user?.email ?? "Player";
+
   return (
-    <div className="mx-auto max-w-4xl rounded-lg bg-gray-800 p-6 shadow-xl">
-      <div className="mb-6 flex items-center justify-between border-b border-gray-700 pb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Public Lobby</h1>
-          <p className="text-gray-400">Join a game or create your own</p>
-        </div>
+    <main className="app-shell">
+      <div className="mx-auto w-full max-w-5xl">
+        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Link href="/" className="text-sm font-semibold text-[#c89b3c] hover:text-[#f1eadc]">Back to home</Link>
+            <h1 className="mt-2 text-3xl font-bold text-[#f1eadc]">Public Lobby</h1>
+            <p className="mt-1 text-[#b9ae9a]">Join an open game or create a new one.</p>
+          </div>
 
-        {/* User Info and Sign Out Button */}
-        {session?.user && (
-          <div className="flex items-center gap-4">
-            {session.user.image ? (
-              <img
-                src={session.user.image}
-                alt="Your avatar"
-                className="h-12 w-12 rounded-full border-2 border-gray-600"
-              />
-            ) : (
-              <div className="h-12 w-12 rounded-full border-2 border-gray-600 bg-gray-700 flex items-center justify-center font-bold">
-                {session.user.name?.charAt(0).toUpperCase()}
+          {session?.user && (
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-2 pr-3">
+              <PlayerAvatar player={{ id: session.user.id, name: userName, image: session.user.image ?? null }} label="Your avatar" />
+              <div>
+                <p className="max-w-40 truncate text-sm font-semibold text-[#f1eadc]">{userName}</p>
+                <button onClick={() => signOut()} className="text-xs text-[#b9ae9a] hover:text-[#f1eadc]">Sign out</button>
               </div>
-            )}
-            <button
-              onClick={() => signOut()}
-              className="rounded-md bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-500"
-            >
-              Sign Out
-            </button>
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </header>
 
-      <div className="flex flex-col gap-4">
-        {/* Open Games List */}
-        <div className="rounded-md bg-gray-900 p-4 h-96 overflow-y-auto">
-          <h2 className="mb-4 text-xl font-semibold text-white">
-            Available to Join
-          </h2>
-          <div className="space-y-3">
-            {openGames.length > 0 ? (
-              openGames.map((game) => {
-                if (
-                  !session?.user ||
-                  game.whitePlayer?.id === session.user.id
-                ) {
-                  return null;
-                }
+        <section className="grid gap-5 lg:grid-cols-[1fr_18rem]">
+          <div className="ui-card rounded-xl p-5">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h2 className="text-xl font-bold text-[#f1eadc]">Open games</h2>
+              <p className="text-sm text-[#b9ae9a]">Refreshes every 10 seconds</p>
+            </div>
 
-                return (
-                  <div
-                    key={game.id}
-                    className="flex items-center justify-between rounded-lg bg-gray-700 p-3"
-                  >
+            <div className="scrollbar-soft max-h-[30rem] space-y-3 overflow-y-auto pr-1">
+              {joinableGames.length > 0 ? (
+                joinableGames.map((game) => (
+                  <div key={game.id} className="flex flex-col gap-3 rounded-lg border border-white/10 bg-black/20 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
-                      {game.whitePlayer?.image ? (
-                        <img
-                          src={game.whitePlayer.image}
-                          alt="Opponent's avatar"
-                          className="h-10 w-10 rounded-full"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-gray-600 flex items-center justify-center font-bold">
-                          {game.whitePlayer?.name?.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <span className="font-semibold">
-                        {game.whitePlayer?.name ?? "Anonymous"}
-                      </span>
+                      <PlayerAvatar player={game.whitePlayer} label="Opponent avatar" />
+                      <div>
+                        <p className="font-semibold text-[#f1eadc]">{game.whitePlayer?.name ?? "Anonymous"}</p>
+                        <p className="font-mono text-xs text-[#b9ae9a]">{game.id}</p>
+                      </div>
                     </div>
-                    <Link
-                      href={`/game/${game.id}`}
-                      className="rounded-md bg-green-600 px-5 py-2 font-bold text-white hover:bg-green-500"
-                    >
-                      Join
-                    </Link>
+                    <Link href={"/game/" + game.id} className="ui-button bg-[#4f7f55] px-5 py-2.5 text-white sm:w-28">Join</Link>
                   </div>
-                );
-              })
-            ) : (
-              <p className="text-center text-gray-500 pt-16">
-                No open games. Why not create one?
-              </p>
-            )}
+                ))
+              ) : (
+                <div className="flex min-h-64 flex-col items-center justify-center rounded-lg border border-dashed border-white/10 bg-black/10 p-8 text-center">
+                  <h3 className="text-xl font-bold text-[#f1eadc]">No open games right now</h3>
+                  <p className="mt-2 max-w-sm text-[#b9ae9a]">Create a public game and it will show here for someone else to join.</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Create Game Button */}
-        <div className="flex-shrink-0">
-          <Link
-            href={`/game/${nanoid(7)}?type=public`}
-            className="block w-full rounded-lg bg-blue-600 p-6 text-center text-xl font-bold text-white shadow-lg hover:bg-blue-500"
-          >
-            + Create New Public Game
-          </Link>
-        </div>
+          <aside className="ui-card h-fit rounded-xl p-5">
+            <h2 className="text-xl font-bold text-[#f1eadc]">Create game</h2>
+            <p className="mt-2 text-sm leading-6 text-[#b9ae9a]">Start a public board and wait for another player.</p>
+            <Link href={"/game/" + nanoid(7) + "?type=public"} className="ui-button mt-5 w-full bg-[#4f7f55] px-5 py-3 text-white">Create Public Game</Link>
+          </aside>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
+
 export default function PublicLobbyWrapper() {
   return (
     <SessionProvider>
-      <div className="flex min-h-screen items-center justify-center bg-gray-900 p-4">
-        <PublicLobby />
-      </div>
+      <PublicLobby />
     </SessionProvider>
   );
 }

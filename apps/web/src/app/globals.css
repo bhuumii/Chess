@@ -1,5 +1,131 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&family=Source+Sans+3:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --page: #141414;
+  --surface: #20201d;
+  --surface-soft: #272722;
+  --surface-muted: #303027;
+  --border: rgba(239, 230, 211, 0.12);
+  --text: #f1eadc;
+  --muted: #b9ae9a;
+  --accent: #c89b3c;
+  --accent-dark: #8f6f2b;
+  --green: #4f7f55;
+  --blue: #536f8f;
+  --red: #94443d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--page);
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: "Source Sans 3", var(--font-geist-sans), sans-serif;
+  background:
+    linear-gradient(rgba(20, 20, 20, 0.94), rgba(20, 20, 20, 0.94)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: auto, 56px 56px, 56px 56px;
+}
+
+a {
+  color: inherit;
+}
+
+.font-display {
+  font-family: "Libre Baskerville", Georgia, serif;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .app-shell {
+    padding: 2.5rem 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-shell {
+    padding: 3rem 2rem;
+  }
+}
+
+.ui-card {
+  border: 1px solid var(--border);
+  background: rgba(32, 32, 29, 0.94);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.55rem;
+  font-weight: 700;
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease, opacity 150ms ease;
+}
+
+.ui-button:hover {
+  transform: translateY(-1px);
+}
+
+.ui-button:active {
+  transform: translateY(0);
+}
+
+.ui-input {
+  border: 1px solid var(--border);
+  background: rgba(20, 20, 20, 0.72);
+  color: var(--text);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.ui-input:focus {
+  border-color: rgba(200, 155, 60, 0.7);
+  box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.16);
+}
+
+.board-frame {
+  border: 8px solid #2c261c;
+  border-radius: 0.85rem;
+  background: #2c261c;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.board-preview {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.scrollbar-soft::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-soft::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+}
+
+.scrollbar-soft::-webkit-scrollbar-thumb {
+  background: rgba(185, 174, 154, 0.35);
+  border-radius: 999px;
+}

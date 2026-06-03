@@ -56,22 +56,29 @@ function PlayerInfo({
   rating,
   capturedPieces,
   image,
+  tone = "neutral",
 }: {
   name: string;
   rating: string;
   capturedPieces: Piece[];
   image?: string | null;
+  tone?: "neutral" | "active";
 }) {
+  const initials = (name || "Player").charAt(0).toUpperCase();
+
   return (
-    <div className="flex w-full items-center justify-between rounded-lg bg-gray-700 p-2">
-      <div className="flex items-center gap-3">
-        <div
-          className="h-10 w-10 rounded-full bg-gray-500 bg-cover bg-center"
-          style={{ backgroundImage: image ? `url(${image})` : "none" }}
-        ></div>
-        <div>
-          <h3 className="text-md font-bold text-white">{name}</h3>
-          <p className="text-xs text-gray-400">{rating}</p>
+    <div className={"flex w-full items-center justify-between gap-4 rounded-lg border p-3 " + (tone === "active" ? "border-[#c89b3c]/45 bg-[#272722]" : "border-white/10 bg-black/20")}>
+      <div className="flex min-w-0 items-center gap-3">
+        {image ? (
+          <div className="h-12 w-12 shrink-0 rounded-lg border border-white/10 bg-cover bg-center" style={{ backgroundImage: "url(" + image + ")" }} />
+        ) : (
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#4f7f55] text-lg font-extrabold text-white">
+            {initials}
+          </div>
+        )}
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-extrabold text-[#f1eadc]">{name}</h3>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#b9ae9a]">{rating}</p>
         </div>
       </div>
       <CapturedPieces pieces={capturedPieces} />
@@ -80,16 +87,21 @@ function PlayerInfo({
 }
 
 function CapturedPieces({ pieces }: { pieces: Piece[] }) {
+  if (pieces.length === 0) {
+    return <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#7f735f]">No captures</span>;
+  }
+
   return (
-    <div className="flex h-6 flex-wrap gap-1">
+    <div className="flex max-w-[9rem] flex-wrap justify-end gap-1">
       {pieces.map((p, index) => (
         <div
           key={index}
-          className="h-5 w-5"
+          className="h-6 w-6 rounded bg-[#f8f1dd]/5"
           style={{
-            backgroundImage: `url(/pieces/${p}.svg)`,
+            backgroundImage: "url(/pieces/" + p + ".svg)",
             backgroundSize: "contain",
             backgroundRepeat: "no-repeat",
+            backgroundPosition: "center",
           }}
         />
       ))}
@@ -103,18 +115,24 @@ function MoveHistory({ history }: { history: string[] }) {
     movePairs.push(history.slice(i, i + 2));
   }
   return (
-    <div className="mt-4 h-64 overflow-y-auto rounded bg-gray-700 p-2 text-sm">
-      <table className="w-full">
-        <tbody>
-          {movePairs.map((pair, index) => (
-            <tr key={index} className="odd:bg-gray-600/50">
-              <td className="w-8 p-1 text-right text-gray-400">{index + 1}.</td>
-              <td className="p-1 font-semibold text-white">{pair[0]}</td>
-              <td className="p-1 font-semibold text-white">{pair[1] || ""}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="scrollbar-soft mt-4 max-h-72 overflow-y-auto rounded-lg border border-white/10 bg-black/25 p-3 text-sm">
+      {movePairs.length > 0 ? (
+        <table className="w-full border-separate border-spacing-y-1">
+          <tbody>
+            {movePairs.map((pair, index) => (
+              <tr key={index} className="rounded-xl bg-white/[0.035]">
+                <td className="w-10 rounded-l-xl px-2 py-2 text-right font-mono text-[#b9ae9a]">{index + 1}.</td>
+                <td className="px-3 py-2 font-extrabold text-[#f1eadc]">{pair[0]}</td>
+                <td className="rounded-r-xl px-3 py-2 font-extrabold text-[#f1eadc]">{pair[1] || ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="flex h-40 items-center justify-center text-center text-sm font-bold text-[#7f735f]">
+          Moves will appear after the first turn.
+        </div>
+      )}
     </div>
   );
 }
@@ -411,138 +429,136 @@ function GamePage({ gameId }: { gameId: string }) {
     }
   }
 
+  const drawButtonClass =
+    "ui-button flex-1 px-4 py-3 text-sm " +
+    (isDrawOffered
+      ? "bg-[#c89b3c] text-[#17130d]"
+      : "bg-black/25 text-[#f1eadc] hover:bg-white/10");
+
+  const opponentName =
+    playerColor === "white"
+      ? blackPlayer?.name || "Waiting for black"
+      : whitePlayer?.name || "Waiting for white";
+  const opponentImage = playerColor === "white" ? blackPlayer?.image : whitePlayer?.image;
+  const myName = session?.user?.name || session?.user?.email || "You";
+
   return (
-    <div className="relative flex min-h-screen bg-gray-900 text-white">
-      <div className="container mx-auto flex flex-col items-center justify-center p-4 lg:flex-row lg:items-start lg:gap-8">
-        <div className="flex w-full max-w-2xl flex-col items-center lg:w-2/3">
-          {/* Opponent's Info Card */}
+    <main className="app-shell min-h-screen px-3 py-5 text-[#f1eadc] sm:px-5 lg:px-8">
+      <div className="relative z-10 mx-auto grid w-full max-w-7xl gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <section className="flex min-w-0 flex-col gap-4">
+          <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-black/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Link href="/" className="text-xs font-bold uppercase tracking-[0.22em] text-[#c89b3c] hover:text-[#f1eadc]">
+                Back to hub
+              </Link>
+              <h1 className="mt-2 text-2xl font-bold text-[#f1eadc] sm:text-4xl">Game</h1>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full border border-white/10 bg-black/25 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#c89b3c]">
+                {gameStatus}
+              </span>
+              <span className="rounded-full border border-white/10 bg-black/25 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#b9ae9a]">
+                {playerColor || "Spectator"}
+              </span>
+            </div>
+          </div>
+
           <PlayerInfo
-            name={
-              playerColor === "white"
-                ? blackPlayer?.name || "Waiting..."
-                : whitePlayer?.name || "Waiting..."
-            }
-            rating="1200"
-            capturedPieces={
-              playerColor === "white" ? capturedPieces.w : capturedPieces.b
-            }
-            image={
-              playerColor === "white" ? blackPlayer?.image : whitePlayer?.image
-            }
+            name={opponentName}
+            rating="Opponent"
+            capturedPieces={playerColor === "white" ? capturedPieces.w : capturedPieces.b}
+            image={opponentImage}
           />
 
-          {/* Chessboard */}
-          <div className="my-4 w-full shadow-2xl">
+          <div className="board-frame w-full overflow-hidden">
             <Chessboard
               id="PlayVsPlay"
               position={game.fen()}
               onPieceDrop={onDrop}
               boardOrientation={playerColor === "black" ? "black" : "white"}
-              arePiecesDraggable={!isGameOver}
-              customDarkSquareStyle={{ backgroundColor: "#b58863" }}
-              customLightSquareStyle={{ backgroundColor: "#f0d9b5" }}
+              arePiecesDraggable={!isGameOver && playerColor !== "spectator"}
+              customDarkSquareStyle={{ backgroundColor: "#8d6748" }}
+              customLightSquareStyle={{ backgroundColor: "#e5d1a7" }}
               customPieces={customPieces}
             />
           </div>
 
-          {/* My Info Card */}
           <PlayerInfo
-            name={session?.user?.name || "You"}
-            rating="1200"
-            capturedPieces={
-              playerColor === "white" ? capturedPieces.b : capturedPieces.w
-            }
+            name={myName}
+            rating="You"
+            capturedPieces={playerColor === "white" ? capturedPieces.b : capturedPieces.w}
             image={session?.user?.image}
+            tone="active"
           />
-        </div>
+        </section>
 
-        {/* Right Sidebar */}
-        <div className="w-full lg:w-1/3 lg:pt-20">
-          <div className="rounded-lg bg-gray-800 p-4">
-            <h2 className="text-2xl font-bold mb-4 border-b border-gray-700 pb-2">
-              Game Info
-            </h2>
-            <div className="flex justify-between text-lg">
-              <span className="font-semibold text-gray-400">Status:</span>
-              <span className="font-bold text-yellow-400">{gameStatus}</span>
+        <aside className="ui-card h-fit rounded-xl p-5 lg:sticky lg:top-5">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#c89b3c]">Game</p>
+              <h2 className="mt-2 text-2xl font-bold text-[#f1eadc]">Game Info</h2>
             </div>
-            <div className="flex justify-between text-lg mt-2">
-              <span className="font-semibold text-gray-400">Your Color:</span>
-              <span className="font-bold capitalize">
-                {playerColor || "Spectator"}
-              </span>
+            <div className="grid h-12 w-12 grid-cols-2 overflow-hidden rounded-lg border border-white/10">
+              <span className="bg-[#e5d1a7]" />
+              <span className="bg-[#8d6748]" />
+              <span className="bg-[#8d6748]" />
+              <span className="bg-[#e5d1a7]" />
             </div>
+          </div>
 
-            <div className="flex items-center justify-between text-lg mt-4 rounded-lg bg-gray-900 p-3">
-              <span className="font-semibold text-gray-400">Game Code:</span>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xl font-bold text-green-400">
-                  {gameId}
-                </span>
-                <button
-                  onClick={() => navigator.clipboard.writeText(gameId)}
-                  title="Copy Game Code"
-                  className="p-1 text-gray-400 hover:text-white"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
-                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H4z" />
-                  </svg>
-                </button>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-white/10 bg-black/25 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b9ae9a]">Status</p>
+              <p className="mt-2 text-lg font-extrabold text-[#c89b3c]">{gameStatus}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-white/10 bg-black/25 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b9ae9a]">Color</p>
+                <p className="mt-2 font-extrabold capitalize text-[#f1eadc]">{playerColor || "Spectator"}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/25 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b9ae9a]">Moves</p>
+                <p className="mt-2 font-extrabold text-[#f1eadc]">{moveHistory.length}</p>
               </div>
             </div>
 
-            <MoveHistory history={moveHistory} />
-
-            {/*The updated buttons */}
-            <div className="mt-4 flex gap-4">
-              <button
-                onClick={handleDraw}
-                disabled={isGameOver}
-                className={`flex-1 rounded-md p-3 font-semibold transition-all ${
-                  isDrawOffered
-                    ? "bg-yellow-500 hover:bg-yellow-400 text-black"
-                    : "bg-gray-700 hover:bg-gray-600"
-                } disabled:opacity-50 disabled:cursor-not-allowed active:brightness-90`}
-              >
-                {isDrawOffered ? "Accept Draw" : "Offer Draw"}
-              </button>
-              <button
-                onClick={handleResign}
-                disabled={isGameOver}
-                className="flex-1 rounded-md bg-red-800 p-3 font-semibold transition-all hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed active:brightness-90" // Added -all and active
-              >
-                Resign
-              </button>
+            <div className="rounded-lg border border-white/10 bg-black/25 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b9ae9a]">Game Code</p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <span className="truncate font-mono text-xl font-extrabold text-[#4f7f55]">{gameId}</span>
+                <button onClick={() => navigator.clipboard.writeText(gameId)} title="Copy Game Code" className="ui-button shrink-0 bg-[#c89b3c] px-3 py-2 text-xs text-[#17130d]">
+                  Copy
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+
+          <MoveHistory history={moveHistory} />
+
+          <div className="mt-4 flex gap-3">
+            <button onClick={handleDraw} disabled={isGameOver} className={drawButtonClass + " disabled:cursor-not-allowed disabled:opacity-50"}>
+              {isDrawOffered ? "Accept Draw" : "Offer Draw"}
+            </button>
+            <button onClick={handleResign} disabled={isGameOver} className="ui-button flex-1 bg-[#94443d] px-4 py-3 text-sm text-white disabled:cursor-not-allowed disabled:opacity-50">
+              Resign
+            </button>
+          </div>
+        </aside>
       </div>
 
       {isGameOver && gameOverMessage && (
-        <div
-          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75"
-          aria-modal="true"
-          role="dialog"
-        >
-          <div className="rounded-lg bg-gray-800 p-8 text-center shadow-2xl">
-            <h2 className="text-4xl font-bold text-white mb-4">Game Over</h2>
-            <p className="text-xl text-gray-300 mb-6">{gameOverMessage}</p>
-            <Link
-              href="/"
-              className="rounded-md bg-blue-600 px-6 py-3 font-bold text-white transition hover:bg-blue-500"
-            >
-              Back to Lobby
+        <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/80 px-4" aria-modal="true" role="dialog">
+          <div className="ui-card max-w-md rounded-xl p-8 text-center">
+            <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#c89b3c]">Match ended</p>
+            <h2 className="mt-3 text-3xl font-bold text-[#f1eadc]">Game Over</h2>
+            <p className="mt-4 text-lg leading-7 text-[#b9ae9a]">{gameOverMessage}</p>
+            <Link href="/" className="ui-button mt-7 bg-[#536f8f] px-6 py-3 text-white">
+              Back to Home
             </Link>
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }
 

@@ -12,52 +12,52 @@ function PrivateLobby() {
 
   const handleJoinGame = (e: React.FormEvent) => {
     e.preventDefault();
-    if (joinCode.trim()) router.push(`/game/${joinCode.trim()}?type=private`);
+    if (joinCode.trim()) router.push("/game/" + joinCode.trim() + "?type=private");
   };
 
   return (
-    <div className="w-full max-w-md rounded-lg bg-gray-800 p-8 text-white shadow-xl">
-      <h1 className="mb-8 text-center text-3xl font-bold">Private Game</h1>
+    <main className="app-shell flex items-center">
+      <div className="mx-auto grid w-full max-w-4xl gap-5 md:grid-cols-[1fr_1fr]">
+        <section className="ui-card rounded-xl p-6">
+          <Link href="/" className="text-sm font-semibold text-[#c89b3c] hover:text-[#f1eadc]">Back to home</Link>
+          <h1 className="mt-3 text-3xl font-bold text-[#f1eadc]">Private Game</h1>
+          <p className="mt-2 text-[#b9ae9a]">Create a game for a friend or join using their code.</p>
 
-      <Link
-        href={`/game/${nanoid(7)}?type=private`}
-        className="block w-full rounded-lg bg-blue-600 p-5 text-center text-xl font-bold shadow-lg transition-transform hover:scale-105 active:scale-100"
-      >
-        + Create New Game
-      </Link>
+          <Link href={"/game/" + nanoid(7) + "?type=private"} className="ui-button mt-6 w-full bg-[#536f8f] px-5 py-3 text-white">Create New Game</Link>
 
-      <div className="my-6 text-center text-gray-400">OR</div>
+          <div className="my-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#b9ae9a]">
+            <span className="h-px flex-1 bg-white/10" />
+            or
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
 
-      <form onSubmit={handleJoinGame}>
-        <h2 className="mb-4 text-center text-xl font-semibold">
-          Join with a Code
-        </h2>
-        <input
-          type="text"
-          value={joinCode}
-          onChange={(e) => setJoinCode(e.target.value)}
-          placeholder="ENTER CODE"
-          className="w-full rounded-md border-gray-600 bg-gray-700 p-3 text-center text-2xl tracking-widest text-white placeholder-gray-500"
-          maxLength={7}
-        />
-        <button
-          type="submit"
-          disabled={!joinCode.trim()}
-          className="mt-4 w-full rounded-lg bg-green-600 p-4 text-lg font-bold shadow-lg transition hover:bg-green-500 disabled:opacity-50 active:brightness-90"
-        >
-          Join Game
-        </button>
-      </form>
-    </div>
+          <form onSubmit={handleJoinGame} className="space-y-4">
+            <div>
+              <label htmlFor="join-code" className="mb-1.5 block text-sm font-semibold text-[#f1eadc]">Game code</label>
+              <input id="join-code" type="text" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="ENTER CODE" className="ui-input w-full rounded-lg px-4 py-3 text-center font-mono text-xl font-bold uppercase tracking-[0.2em] placeholder:text-[#756b5b]" maxLength={7} />
+            </div>
+            <button type="submit" disabled={!joinCode.trim()} className="ui-button w-full bg-[#4f7f55] px-5 py-3 text-white disabled:cursor-not-allowed disabled:opacity-50">Join Game</button>
+          </form>
+        </section>
+
+        <section className="ui-card hidden rounded-xl p-6 md:block">
+          <h2 className="text-xl font-bold text-[#f1eadc]">Private matches</h2>
+          <p className="mt-2 text-sm leading-6 text-[#b9ae9a]">Share the generated game code with one person. They can enter it here to join the same board.</p>
+          <div className="board-preview mt-6 aspect-square w-full">
+            {Array.from({ length: 64 }).map((_, index) => (
+              <span key={index} className={(index + Math.floor(index / 8)) % 2 === 0 ? "bg-[#e5d1a7]" : "bg-[#8d6748]"} />
+            ))}
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
 
 export default function PrivateLobbyWrapper() {
   return (
     <SessionProvider>
-      <div className="flex min-h-screen items-center justify-center bg-gray-900 p-4">
-        <PrivateLobby />
-      </div>
+      <PrivateLobby />
     </SessionProvider>
   );
 }
