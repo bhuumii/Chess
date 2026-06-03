@@ -6,6 +6,8 @@ export const PUSHER_EVENTS = {
   GAME_STATUS: "game-status",
   DRAW_OFFERED: "draw-offered",
   GAME_OVER: "game-over",
+  CHAT_MESSAGE: "chat-message",
+  REACTION: "reaction",
 } as const;
 
 let pusherServer: Pusher | null = null;

@@ -51,6 +51,33 @@ type GameOverPayload = {
   winner: string;
 };
 
+type ChatMessagePayload = {
+  id: string;
+  userId: string;
+  image: string | null;
+  message: string;
+  createdAt: number;
+};
+
+type ReactionPayload = {
+  id: string;
+  userId: string;
+  reaction: "heart" | "clap" | "laugh" | "thumbs-up" | "thumbs-down";
+  createdAt: number;
+};
+
+const REACTION_OPTIONS: Array<{ id: ReactionPayload["reaction"]; label: string }> = [
+  { id: "heart", label: "♥" },
+  { id: "clap", label: "👏" },
+  { id: "laugh", label: "😂" },
+  { id: "thumbs-up", label: "👍" },
+  { id: "thumbs-down", label: "👎" },
+];
+
+function reactionLabel(reaction: ReactionPayload["reaction"]) {
+  return REACTION_OPTIONS.find((option) => option.id === reaction)?.label ?? "";
+}
+
 function PlayerInfo({
   name,
   rating,
@@ -244,8 +271,13 @@ function GamePage({ gameId }: { gameId: string }) {
   const [blackPlayer, setBlackPlayer] = useState<Player>(null);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [legalMoveSquares, setLegalMoveSquares] = useState<Square[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessagePayload[]>([]);
+  const [chatText, setChatText] = useState("");
+  const [reactions, setReactions] = useState<ReactionPayload[]>([]);
   const searchParams = useSearchParams();
-  const gameType = searchParams.get("type") as "private" | null;
+  const gameType = searchParams.get("type") as "private" | "public" | null;
+  const isPrivateGame = gameType === "private";
 
   async function postGameAction<T>(action: string, body: unknown) {
     const res = await fetch(`/api/games/${gameId}/${action}`, {
@@ -356,6 +388,8 @@ function GamePage({ gameId }: { gameId: string }) {
             let message = "";
             if (data.reason === "draw") {
               message = "Game over: Draw agreed.";
+            } else if (data.reason === "checkmate") {
+              message = `Checkmate! ${data.winner.charAt(0).toUpperCase() + data.winner.slice(1)} wins.`;
             } else {
               message = `Game over: ${data.winner.charAt(0).toUpperCase() + data.winner.slice(1)} wins by resignation.`;
             }
@@ -364,6 +398,17 @@ function GamePage({ gameId }: { gameId: string }) {
 
           channel.bind("game-status", (data: { status: string }) => {
             setGameStatus(data.status);
+          });
+
+          channel.bind("chat-message", (data: ChatMessagePayload) => {
+            setChatMessages((messages) => [...messages, data].slice(-80));
+          });
+
+          channel.bind("reaction", (data: ReactionPayload) => {
+            setReactions((items) => [...items, data].slice(-8));
+            window.setTimeout(() => {
+              setReactions((items) => items.filter((item) => item.id !== data.id));
+            }, 3500);
           });
         } catch (error) {
           if (isCancelled) return;
@@ -471,6 +516,29 @@ function GamePage({ gameId }: { gameId: string }) {
 
   function onDrop(sourceSquare: Square, targetSquare: Square) {
     return makeMove(sourceSquare, targetSquare);
+  }
+
+  async function sendChatMessage(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const message = chatText.trim();
+    if (!message || !isPrivateGame) return;
+
+    setChatText("");
+    try {
+      await postGameAction("chat", { message });
+    } catch (error) {
+      console.error("Failed to send chat message", error);
+    }
+  }
+
+  async function sendReaction(reaction: ReactionPayload["reaction"]) {
+    if (isPrivateGame) return;
+
+    try {
+      await postGameAction("reaction", { reaction });
+    } catch (error) {
+      console.error("Failed to send reaction", error);
+    }
   }
 
   function onSquareClick(square: Square) {
@@ -634,6 +702,89 @@ function GamePage({ gameId }: { gameId: string }) {
               Resign
             </button>
           </div>
+
+          {isPrivateGame ? (
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <button
+                type="button"
+                onClick={() => setIsChatOpen((value) => !value)}
+                className="ui-button w-full border border-white/10 bg-black/20 px-4 py-3 text-sm text-[#f1eadc] hover:border-[#c89b3c]/50"
+              >
+                Chat with your friend
+              </button>
+
+              {isChatOpen && (
+                <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-3">
+                  <div className="scrollbar-soft flex max-h-64 flex-col gap-3 overflow-y-auto pr-1">
+                    {chatMessages.length > 0 ? (
+                      chatMessages.map((message) => {
+                        const isMine = message.userId === session?.user?.id;
+                        return (
+                          <div key={message.id} className={"flex gap-2 " + (isMine ? "justify-end" : "justify-start")}>
+                            {!isMine && (
+                              <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white/10 bg-[#4f7f55]">
+                                {message.image && <img src={message.image} alt="" className="h-full w-full object-cover" />}
+                              </div>
+                            )}
+                            <p className={"max-w-[13rem] rounded-lg px-3 py-2 text-sm leading-5 " + (isMine ? "bg-[#c89b3c] text-[#141414]" : "bg-[#272722] text-[#f1eadc]")}>
+                              {message.message}
+                            </p>
+                            {isMine && (
+                              <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white/10 bg-[#4f7f55]">
+                                {message.image && <img src={message.image} alt="" className="h-full w-full object-cover" />}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="py-6 text-center text-sm text-[#b9ae9a]">No messages yet.</p>
+                    )}
+                  </div>
+
+                  <form onSubmit={sendChatMessage} className="mt-3 flex gap-2">
+                    <input
+                      value={chatText}
+                      onChange={(event) => setChatText(event.target.value)}
+                      maxLength={300}
+                      placeholder="Message..."
+                      className="ui-input min-w-0 flex-1 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <button type="submit" disabled={!chatText.trim()} className="ui-button bg-[#4f7f55] px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-50">
+                      Send
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <p className="mb-3 text-sm font-semibold text-[#f1eadc]">Reactions</p>
+              <div className="grid grid-cols-5 gap-2">
+                {REACTION_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => sendReaction(option.id)}
+                    className="rounded-lg border border-white/10 bg-black/20 px-2 py-3 text-xl transition hover:border-[#c89b3c]/50 hover:bg-white/5"
+                    aria-label={"Send " + option.id + " reaction"}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+
+              {reactions.length > 0 && (
+                <div className="mt-4 flex min-h-12 flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-black/20 p-3">
+                  {reactions.map((reaction) => (
+                    <span key={reaction.id} className="rounded-full bg-[#272722] px-3 py-1 text-xl shadow-sm">
+                      {reactionLabel(reaction.reaction)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </aside>
       </div>
 
