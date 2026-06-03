@@ -242,6 +242,8 @@ function GamePage({ gameId }: { gameId: string }) {
   const [gameOverMessage, setGameOverMessage] = useState("");
   const [whitePlayer, setWhitePlayer] = useState<Player>(null);
   const [blackPlayer, setBlackPlayer] = useState<Player>(null);
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [legalMoveSquares, setLegalMoveSquares] = useState<Square[]>([]);
   const searchParams = useSearchParams();
   const gameType = searchParams.get("type") as "private" | null;
 
@@ -258,6 +260,11 @@ function GamePage({ gameId }: { gameId: string }) {
     return data as T;
   }
 
+  function clearSelection() {
+    setSelectedSquare(null);
+    setLegalMoveSquares([]);
+  }
+
   function applyFullGameState(data: FullGameState) {
     const newGame = new Chess(data.game.fen);
     setGame(newGame);
@@ -265,6 +272,7 @@ function GamePage({ gameId }: { gameId: string }) {
     setCapturedPieces(calculateCapturedPieces(data.game.fen));
     setWhitePlayer(data.whitePlayer);
     setBlackPlayer(data.blackPlayer);
+    clearSelection();
   }
 
   async function handleResign() {
@@ -336,6 +344,7 @@ function GamePage({ gameId }: { gameId: string }) {
             setGame(newGame);
             setMoveHistory(newGame.history());
             setCapturedPieces(calculateCapturedPieces(data.fen));
+            clearSelection();
           });
 
           channel.bind("draw-offered", (data: { fromUserId: string }) => {
@@ -382,30 +391,60 @@ function GamePage({ gameId }: { gameId: string }) {
     }
   }, [game, playerColor]);
 
-  function updateGameStatus() {
-    if (game.isCheckmate()) {
-      setGameStatus(
-        `Checkmate! ${game.turn() === "w" ? "Black" : "White"} wins.`,
-      );
+  function updateGameStatus(currentGame = game) {
+    if (currentGame.isCheckmate()) {
+      const winner = currentGame.turn() === "w" ? "Black" : "White";
+      const message = `Checkmate! ${winner} wins.`;
+      setGameStatus(message);
+      setGameOverMessage(message);
       setIsGameOver(true);
-    } else if (game.isDraw()) {
+    } else if (currentGame.isDraw()) {
       setGameStatus("Draw!");
+      setGameOverMessage("Game over: Draw.");
       setIsGameOver(true);
+    } else if (currentGame.isCheck()) {
+      setGameStatus(`Check! ${currentGame.turn() === "w" ? "White" : "Black"} to move.`);
+      setGameOverMessage("");
+      setIsGameOver(false);
     } else {
-      setGameStatus(`${game.turn() === "w" ? "White" : "Black"}'s turn`);
+      setGameStatus(`${currentGame.turn() === "w" ? "White" : "Black"}'s turn`);
+      setGameOverMessage("");
       setIsGameOver(false);
     }
   }
 
-  function onDrop(sourceSquare: Square, targetSquare: Square) {
-    if (
-      !playerColor ||
-      playerColor === "spectator" ||
-      game.turn() !== playerColor[0] ||
-      isGameOver
-    ) {
-      return false;
+  function canMoveNow(currentGame = game) {
+    return Boolean(
+      playerColor &&
+      playerColor !== "spectator" &&
+      currentGame.turn() === playerColor[0] &&
+      !isGameOver,
+    );
+  }
+
+  function getLegalMoveSquares(square: Square, currentGame = game) {
+    const piece = currentGame.get(square);
+    if (!piece || !canMoveNow(currentGame) || piece.color !== playerColor?.[0]) {
+      return [];
     }
+
+    return currentGame.moves({ square, verbose: true }).map((move) => move.to as Square);
+  }
+
+  function selectSquare(square: Square) {
+    const moves = getLegalMoveSquares(square);
+    if (moves.length === 0) {
+      clearSelection();
+      return;
+    }
+
+    setSelectedSquare(square);
+    setLegalMoveSquares(moves);
+  }
+
+  function makeMove(sourceSquare: Square, targetSquare: Square) {
+    if (!canMoveNow()) return false;
+
     const gameCopy = new Chess(game.fen());
     try {
       const move = gameCopy.move({
@@ -413,21 +452,65 @@ function GamePage({ gameId }: { gameId: string }) {
         to: targetSquare,
         promotion: "q",
       });
-      if (move) {
-        setGame(gameCopy);
-        const newHistory = gameCopy.history();
-        setMoveHistory(newHistory);
-        setCapturedPieces(calculateCapturedPieces(gameCopy.fen()));
-        updateGameStatus();
-        void postGameAction("move", { fen: gameCopy.fen() }).catch((error) => {
-          console.error("Failed to send move", error);
-        });
-      }
+
+      if (!move) return false;
+
+      setGame(gameCopy);
+      setMoveHistory(gameCopy.history());
+      setCapturedPieces(calculateCapturedPieces(gameCopy.fen()));
+      clearSelection();
+      updateGameStatus(gameCopy);
+      void postGameAction("move", { fen: gameCopy.fen() }).catch((error) => {
+        console.error("Failed to send move", error);
+      });
       return true;
     } catch {
       return false;
     }
   }
+
+  function onDrop(sourceSquare: Square, targetSquare: Square) {
+    return makeMove(sourceSquare, targetSquare);
+  }
+
+  function onSquareClick(square: Square) {
+    if (!canMoveNow()) {
+      clearSelection();
+      return;
+    }
+
+    if (selectedSquare) {
+      if (selectedSquare === square) {
+        clearSelection();
+        return;
+      }
+
+      if (legalMoveSquares.includes(square)) {
+        makeMove(selectedSquare, square);
+        return;
+      }
+    }
+
+    selectSquare(square);
+  }
+
+  const highlightedSquares = legalMoveSquares.reduce<Record<string, React.CSSProperties>>(
+    (styles, square) => {
+      styles[square] = {
+        background:
+          "radial-gradient(circle, rgba(200, 155, 60, 0.52) 18%, rgba(200, 155, 60, 0.18) 20%, transparent 24%)",
+      };
+      return styles;
+    },
+    selectedSquare
+      ? {
+          [selectedSquare]: {
+            boxShadow: "inset 0 0 0 4px rgba(200, 155, 60, 0.82)",
+            backgroundColor: "rgba(200, 155, 60, 0.24)",
+          },
+        }
+      : {},
+  );
 
   const drawButtonClass =
     "ui-button flex-1 px-4 py-3 text-sm " +
@@ -475,6 +558,8 @@ function GamePage({ gameId }: { gameId: string }) {
               id="PlayVsPlay"
               position={game.fen()}
               onPieceDrop={onDrop}
+              onSquareClick={onSquareClick}
+              customSquareStyles={highlightedSquares}
               boardOrientation={playerColor === "black" ? "black" : "white"}
               arePiecesDraggable={!isGameOver && playerColor !== "spectator"}
               customDarkSquareStyle={{ backgroundColor: "#8d6748" }}
@@ -482,6 +567,12 @@ function GamePage({ gameId }: { gameId: string }) {
               customPieces={customPieces}
             />
           </div>
+
+          {game.isCheck() && !game.isCheckmate() && (
+            <div className="rounded-lg border border-[#c89b3c]/30 bg-[#c89b3c]/10 px-4 py-3 text-sm font-semibold text-[#f1eadc]">
+              Check: {game.turn() === "w" ? "White" : "Black"} king is under attack.
+            </div>
+          )}
 
           <PlayerInfo
             name={myName}
