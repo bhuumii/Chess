@@ -4,6 +4,9 @@
     "**/.env"
   ],
   "globalEnv": [
+    "AUTH_GOOGLE_ID",
+"AUTH_GOOGLE_SECRET",
+"AUTH_SECRET" , 
     "PUSHER_APP_ID",
     "PUSHER_SECRET",
     "NEXT_PUBLIC_PUSHER_KEY",
